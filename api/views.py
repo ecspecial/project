@@ -8,6 +8,7 @@ from .serializers import UserSerializer, StockSerializer, OemSerializer
 import pymysql
 from decouple import config
 import time
+from django.db.models import F
 
 """
     Функция для установления соединения с базой данных MySQL.
@@ -112,9 +113,22 @@ def get_article(request):
         # Check user credentials
         user = Users.objects.filter(login=login).first()
         if not user:
-            return JsonResponse({'error': 'Пользователь не найден'}, status=404)
+            return JsonResponse(
+                {'error': 'Пользователь не найден'}, 
+                safe=False,
+                json_dumps_params={'ensure_ascii': True},
+                status=404
+            )
         if user.password != password:
-            return JsonResponse({'error': 'Неправильный пароль'}, status=401)
+            return JsonResponse(
+                {'error': 'Неправильный пароль'}, 
+                safe=False,
+                json_dumps_params={'ensure_ascii': True},
+                status=401
+            )
+        
+        user.ch = F('ch') + 1 
+        user.save(update_fields=['ch']) 
 
         # Check article in 'oem' table
         article_record = Oem.objects.filter(oem=article).first()
@@ -124,23 +138,48 @@ def get_article(request):
             article_record2 = Stok.objects.filter(article=article_record.art).first()
             if article_record2:
                 # print('article_record2:', article_record)
+                clean_price = article_record2.price.replace(',', '.').strip()
+                discount_amount = (float(clean_price) * user.dis) / 100
+                discounted_price = "{:.2f}".format(float(clean_price) - discount_amount)
+
                 article_data = {
                     'article': article_record2.article.strip(),
                     'name': article_record2.nam.strip(),
                     'oem': article_record2.oem.strip(),
-                    'price': article_record2.price.strip(),
+                    'price': discounted_price,
                     'quantity': article_record2.quantity.strip(),
                     'brand': article_record2.brand.strip(),
                 }
-                return JsonResponse(article_data)
+                # return JsonResponse(article_data)
+                return JsonResponse(
+                {'message': 'Информация по товару', 'article_data': article_data},
+                safe=False,
+                json_dumps_params={'ensure_ascii': True},
+                status=200
+            )
             else:
-                return JsonResponse({'error': 'Артикул не найден'}, status=404)
+                return JsonResponse(
+                    {'error': 'Артикул не найден'}, 
+                    safe=False,
+                    json_dumps_params={'ensure_ascii': True},  
+                    status=404
+                )
         else:
-            return JsonResponse({'error': 'Артикул не найден'}, status=404)
+            return JsonResponse(
+                {'error': 'Артикул не найден'},
+                safe=False,
+                json_dumps_params={'ensure_ascii': True},  
+                status=404
+            )
 
     except Exception as e:
         print('Произошла ошибка:', e)
-        return JsonResponse({'error': 'Произошла ошибка'}, status=500)
+        return JsonResponse(
+            {'error': 'Произошла ошибка'}, 
+            safe=False,
+            json_dumps_params={'ensure_ascii': True}, 
+            status=500
+        )
 
 """
     Создание нового заказа.
@@ -164,11 +203,24 @@ def create_order(request):
 
     # Проверка учетных данных пользователя
     if not Users.objects.filter(login=login).exists():
-        return JsonResponse({'error': 'Пользователь не найден'}, status=404)
+        return JsonResponse(
+            {'error': 'Пользователь не найден'}, 
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},  
+            status=404
+        )
 
     user = Users.objects.get(login=login)
     if user.password != password:
-        return JsonResponse({'error': 'Неправильный пароль'}, status=401)
+        return JsonResponse(
+            {'error': 'Неправильный пароль'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True}, 
+            status=401
+        )
+    
+    user.ch = F('ch') + 1 
+    user.save(update_fields=['ch']) 
 
     # Подключение к MySQL базе данных используя pymysql
     mysql_conn = get_mysql_connection()
@@ -189,7 +241,12 @@ def create_order(request):
                 # print('quantity: ', quantity)
 
                 if not Stok.objects.filter(article=article).exists():
-                    return JsonResponse({'error': f'Артикул {article} не найден'}, status=404)
+                    return JsonResponse(
+                        {'error': f'Артикул {article} не найден'}, 
+                        safe=False,
+                        json_dumps_params={'ensure_ascii': True}, 
+                        status=404
+                    )
                 
                 # Получаем информацию из таблицы Stok из MSSQL базы данных
                 stok_item = Stok.objects.get(article=article)
@@ -211,11 +268,21 @@ def create_order(request):
     except pymysql.MySQLError as e:
         # При неудачной обработке отменяем запросы к базе и возвращаем ошибку
         mysql_conn.rollback()
-        return JsonResponse({'error': f'Ошибка базы данных: {str(e)}'}, status=500)
+        return JsonResponse(
+            {'error': f'Ошибка базы данных: {str(e)}'}, 
+            safe=False,
+            json_dumps_params={'ensure_ascii': True}, 
+            status=500
+        )
     finally:
         mysql_conn.close()
 
-    return JsonResponse({'message': 'Заказ создан успешно', 'order_id': order_id})
+    return JsonResponse(
+        {'message': 'Заказ создан успешно', 'order_id': order_id},
+        safe=False,
+        json_dumps_params={'ensure_ascii': True},
+        status=201
+    )
 
 @api_view(["POST"])
 def get_order_details(request):
@@ -233,11 +300,24 @@ def get_order_details(request):
 
 # Проверка учетных данных пользователя
     if not Users.objects.filter(login=login).exists():
-        return JsonResponse({'error': 'Пользователь не найден'}, status=404)
+        return JsonResponse(
+            {'error': 'Пользователь не найден'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=404
+        )
 
     user = Users.objects.get(login=login)
     if user.password != password:
-        return JsonResponse({'error': 'Неправильный пароль'}, status=401)
+        return JsonResponse(
+            {'error': 'Неправильный пароль'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=401
+        )
+    
+    user.ch = F('ch') + 1 
+    user.save(update_fields=['ch']) 
 
     try:
         with mysql_conn.cursor() as cursor:
@@ -245,23 +325,47 @@ def get_order_details(request):
             cursor.execute("SELECT id FROM shop_orders WHERE id = %s AND user_id = %s", (order_id, user.id))
             order = cursor.fetchone()
             if not order:
-                return JsonResponse({'error': 'Заказ не найден или доступ запрещен'}, status=404)
+                return JsonResponse(
+                    {'error': 'Заказ не найден или доступ запрещен'},
+                    safe=False,
+                    json_dumps_params={'ensure_ascii': True},
+                    status=404
+                )
 
             # Получение деталей заказа
             cursor.execute("""SELECT count_need, status, t2_manufacturer, t2_article_show, t2_name
                               FROM shop_orders_items WHERE order_id = %s""", (order_id,))
             order_items = cursor.fetchall()
             if not order_items:
-                return JsonResponse({'error': 'Детали заказа не найдены'}, status=404)
+                return JsonResponse(
+                    {'error': 'Детали заказа не найдены'},
+                    safe=False,
+                    json_dumps_params={'ensure_ascii': True},
+                    status=404)
     except pymysql.MySQLError as e:
         # При неудачной обработке отменяем запросы к базе и возвращаем ошибку
         mysql_conn.close()
-        return JsonResponse({'error': f'Ошибка базы данных: {str(e)}'}, status=500)
+        return JsonResponse(
+            {'error': f'Ошибка базы данных: {str(e)}'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=500
+        )
     else:
         mysql_conn.close()
-        return JsonResponse({'message': 'Данные заказа', 'order_id': order_id, 'order_items': order_items})
+        return JsonResponse(
+            {'message': 'Данные заказа', 'order_id': order_id, 'order_items': order_items},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=200
+        )
 
 @api_view(["GET"])
 def test_endpoint(request):
     # Возвращаем ответ с сообщением о том, что сервер работает
-    return JsonResponse({'message': 'Сервер работает'}, status=200)
+    return JsonResponse(
+        {'message': 'Сервер работает'},
+        safe=False,
+        json_dumps_params={'ensure_ascii': True},
+        status=200 
+    )

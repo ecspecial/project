@@ -5,6 +5,7 @@ class Users(models.Model):
     login = models.CharField(max_length=50)
     password = models.CharField(max_length=50)
     dis = models.IntegerField()
+    # ch = models.IntegerField()
 
     class Meta:
         db_table = 'users'
