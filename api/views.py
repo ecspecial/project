@@ -10,6 +10,10 @@ from decouple import config
 import time
 from django.db.models import F
 
+# Статичные учетные данные мастера
+MASTER_LOGIN = config('MASTER_LOGIN')
+MASTER_PASSWORD = config('MASTER_PASSWORD')
+
 """
     Функция для установления соединения с базой данных MySQL.
 """
@@ -358,6 +362,85 @@ def get_order_details(request):
             safe=False,
             json_dumps_params={'ensure_ascii': True},
             status=200
+        )
+    
+@api_view(['POST'])
+def add_user(request):
+    """
+    Метод для создания нового пользователя в базе данных.
+
+    Параметры:
+        request (HttpRequest): Запрос от клиента.
+
+    Возвращаемое значение:
+        JsonResponse: JSON-ответ с данными нового пользователя и статусом HTTP.
+    """
+    # Получение данных из запроса
+    data = request.data
+    master_login = data.get('master_login')
+    master_password = data.get('master_password')
+    new_user_data = data.get('new_user', {})
+
+    # Проверка мастер-логина и мастер-пароля
+    if master_login != MASTER_LOGIN or master_password != MASTER_PASSWORD:
+        return JsonResponse(
+            {'error': 'Недопустимые учетные данные мастера'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=401
+        )
+
+    # Проверка наличия новых данных пользователя в запросе
+    if not new_user_data:
+        return JsonResponse(
+            {'error': 'Данные нового пользователя отсутствуют в запросе'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=400
+        )
+
+    # Извлечение данных нового пользователя
+    login = new_user_data.get('login')
+    password = new_user_data.get('password')
+    dis = new_user_data.get('dis', 0)
+
+    # Проверка обязательных полей нового пользователя
+    if not login or not password:
+        return JsonResponse(
+            {'error': 'Логин и пароль обязательны для создания нового пользователя'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=400
+        )
+    
+    # Проверка наличия пользователя с таким логином в базе данных
+    if Users.objects.filter(login=login).exists():
+        return JsonResponse(
+            {'error': 'Пользователь с таким логином уже существует'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=409
+        )
+
+    # Получение последнего id пользователя из базы данных
+    last_user_id = Users.objects.last().id if Users.objects.exists() else 0
+
+    # Создание нового пользователя
+    try:
+        user = Users.objects.create(id=last_user_id + 1, login=login, password=password, dis=dis, ch=0)
+        serializer = UserSerializer(user)
+        return JsonResponse(
+            {'message': 'Пользователь добавлен успешно', 'user': serializer.data}, 
+            safe=False,
+            json_dumps_params={'ensure_ascii': True}, 
+            status=201
+        )
+    except Exception as e:
+        return JsonResponse(
+            {'error': f'Произошла ошибка при создании пользователя: {str(e)}'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=500
         )
 
 @api_view(["GET"])

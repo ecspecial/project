@@ -4,7 +4,7 @@ from .models import Users, Stok, Oem
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
-        fields = ['login', 'dis']
+        fields = ['id', 'login', 'dis', 'ch']
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
