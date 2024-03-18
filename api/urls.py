@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import get_all_stock, get_all_users, get_all_oem, get_shop_orders, get_article, create_order, get_order_details, test_endpoint, add_user
+from .views import get_all_stock, get_all_users, get_all_oem, get_shop_orders, get_article, create_order, get_order_details, test_endpoint, add_user, get_user_specific_cards
 
 urlpatterns = [
     # path('stock/', get_all_stock, name='get_all_stock'),
@@ -11,4 +11,5 @@ urlpatterns = [
     path('order-details/', get_order_details, name='get_order_details'),
     path('test/', test_endpoint, name='test_endpoint'),
     path('add-user/', add_user, name='add_user'),
+    path('get-all-stock/', get_user_specific_cards, name='get_user_specific_cards'),
 ]

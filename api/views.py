@@ -3,8 +3,12 @@ from django.db import connections
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework import status
-from .models import Users, Stok, Oem
+from .models import Users, Stok, Oem, Card
+from django.db.models import Value as V
+from django.db.models.functions import Concat
 from .serializers import UserSerializer, StockSerializer, OemSerializer
+from django.db.models.functions import Trim
+from django.db.models import CharField
 import pymysql
 from decouple import config
 import time
@@ -135,35 +139,38 @@ def get_article(request):
         user.save(update_fields=['ch']) 
 
         # Check article in 'oem' table
-        article_record = Oem.objects.filter(oem=article).first()
-        if article_record:
-            # print('article_record:', article_record)
-            # If found in 'oem' table, search in 'stok' table
-            article_record2 = Stok.objects.filter(article=article_record.art).first()
-            if article_record2:
-                # print('article_record2:', article_record)
-                clean_price = article_record2.price.replace(',', '.').strip()
-                discount_amount = (float(clean_price) * user.dis) / 100
-                discounted_price = "{:.2f}".format(float(clean_price) - discount_amount)
+        article_records = Oem.objects.filter(oem=article)
+        print(article_records)
+        if article_records.exists():
+            article_data_list = []
+            for article_record in article_records:
+                article_record2 = Stok.objects.filter(article=article_record.art).first()
+                if article_record2:
+                    clean_price = article_record2.price.replace(',', '.').strip()
+                    discount_amount = (float(clean_price) * user.dis) / 100
+                    discounted_price = "{:.2f}".format(float(clean_price) - discount_amount)
 
-                article_data = {
-                    'article': article_record2.article.strip(),
-                    'name': article_record2.nam.strip(),
-                    'oem': article_record2.oem.strip(),
-                    'price': discounted_price,
-                    'quantity': article_record2.quantity.strip(),
-                    'brand': article_record2.brand.strip(),
-                }
-                # return JsonResponse(article_data)
+                    article_data = {
+                        'article': article_record2.article.strip(),
+                        'name': article_record2.nam.strip(),
+                        'oem': article_record2.oem.strip(),
+                        'price': discounted_price,
+                        'quantity': article_record2.quantity.strip(),
+                        'brand': article_record2.brand.strip(),
+                    }
+
+                    article_data_list.append(article_data)
+
+            if article_data_list:
                 return JsonResponse(
-                {'message': 'Информация по товару', 'article_data': article_data},
-                safe=False,
-                json_dumps_params={'ensure_ascii': True},
-                status=200
-            )
+                    {'message': 'Информация по товарам', 'article_data_list': article_data_list},
+                    safe=False,
+                    json_dumps_params={'ensure_ascii': True},
+                    status=200
+                )
             else:
                 return JsonResponse(
-                    {'error': 'Артикул не найден'}, 
+                    {'error': 'Артикулы не найдены'}, 
                     safe=False,
                     json_dumps_params={'ensure_ascii': True},  
                     status=404
@@ -451,4 +458,61 @@ def test_endpoint(request):
         safe=False,
         json_dumps_params={'ensure_ascii': True},
         status=200 
+    )
+
+"""
+    Метод получения всех товаров со скидкой клиента.
+
+    Parameters:
+        request (HttpRequest): Запрос от клиента.
+
+    Returns:
+        JsonResponse: JSON-ответ с результатом товаров со скидкой и статусом HTTP.
+
+"""
+@api_view(['POST'])
+def get_user_specific_cards(request):
+    login = request.data.get('login')
+    password = request.data.get('password')
+
+    # User Authentication
+    user = Users.objects.filter(login=login).first()
+    if not user:
+        return JsonResponse(
+            {'error': 'Пользователь не найден'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=404
+        )
+    if user.password != password:
+        return JsonResponse(
+            {'error': 'Неправильный пароль'},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=401
+        )
+
+    # Retrieve User's Discount Level
+    dis_field_name = f'dis{user.dis}'
+
+    # Annotate the queryset with the trimmed fields and discount field value
+    cards = Card.objects.annotate(
+        product_article=Trim('article'),
+        product_nam=Trim('nam'),
+        product_oem=Trim('oem'),
+        product_new_item=Trim('new_item'),
+        product_brand=Trim('brand'),
+        product_price=Trim(F(dis_field_name))
+    ).values(
+        'product_article', 'product_nam', 'product_oem', 'product_new_item', 'product_brand', 'product_price'
+    )
+
+    # Since we're using values(), it will already return a list of dictionaries.
+    # The list conversion is not necessary.
+    # return Response(cards)
+    return JsonResponse(
+        {'message': 'Данные по товарам', 'cards': list(cards)},
+        safe=False,
+        json_dumps_params={'ensure_ascii': True},
+        status=200
     )

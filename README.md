@@ -73,12 +73,49 @@
 
 Если указанный логин и пароль верны, и товар с указанным артикулом существует в базе данных, метод вернет JSON-ответ с информацией о товаре:
 {
-  "article": "артикул",
-  "name": "название",
-  "oem": "oem",
-  "price": "цена",
-  "quantity": "количество на складе",
-  "brand": "бренд"
+    "message": "Информация по товарам",
+    "article_data_list": [
+        {
+            "article": "JPCP507-640",
+            "name": "FOCUS 14- CT4Z16003A (ФРОНТОВОЕ СТЕКЛО)",
+            "oem": "68051223AB",
+            "price": "733.01",
+            "quantity": "1",
+            "brand": "BodyParts"
+        },
+        {
+            "article": "FDFOC14-020-R",
+            "name": "FOCUS 14- CT4Z16003A (ФРОНТОВОЕ СТЕКЛО)",
+            "oem": "1866225",
+            "price": "1858.95",
+            "quantity": "5",
+            "brand": "BodyParts"
+        },
+        {
+            "article": "RNLOG05-331",
+            "name": "2",
+            "oem": "1866225",
+            "price": "0.90",
+            "quantity": "1",
+            "brand": "BodyParts"
+        },
+        {
+            "article": "RNLOG05-331",
+            "name": "2",
+            "oem": "1866225",
+            "price": "0.90",
+            "quantity": "1",
+            "brand": "BodyParts"
+        },
+        {
+            "article": "LDLAR12-330",
+            "name": "4",
+            "oem": "4",
+            "price": "3.60",
+            "quantity": "4",
+            "brand": "4"
+        }
+    ]
 }
 
 В случае ошибки (например, неверный логин/пароль или товар не найден) метод вернет соответствующее сообщение об ошибке.
@@ -167,6 +204,55 @@
         "ch": 0
     }
 }
+```
+
+### Получение всех товаров со скидкой клиента
+
+Метод POST, который позволяет получить все товары со скидкой клиента
+
+### URL http://127.0.0.1:8000/api/get-all-stock/
+
+### Тело запроса (Пример)
+```json
+
+{
+    "login": "user0",
+    "password": "password"
+}
+
+
+Ответ
+
+{
+    "message": "Данные по товарам",
+    "cards": [
+        {
+            "product_article": "JPCP507-640",
+            "product_nam": "FOCUS 14- CT4Z16003A (ФРОНТОВОЕ СТЕКЛО)",
+            "product_oem": "68051223AB",
+            "product_new_item": null,
+            "product_brand": "BodyParts",
+            "product_price": "13240"
+        },
+        {
+            "product_article": "RNLOG05-331",
+            "product_nam": "FOCUS 14- CT4Z16003A (ФРОНТОВОЕ СТЕКЛО)",
+            "product_oem": "68051223AB",
+            "product_new_item": null,
+            "product_brand": "BodyParts",
+            "product_price": "13900"
+        },
+        {
+            "product_article": "LDLAR12-330",
+            "product_nam": "FOCUS 14- CT4Z16003A (ФРОНТОВОЕ СТЕКЛО)",
+            "product_oem": "68051223AC",
+            "product_new_item": null,
+            "product_brand": "BodyParts",
+            "product_price": "46462"
+        },
+    ]
+}
+
 ```
 
 ## Синхронизация репозитория
