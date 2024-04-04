@@ -168,6 +168,7 @@
         {
             "count_need": 2,
             "status": 1,
+            "name_status": "Отказ клиента",
             "t2_manufacturer": "BodyParts",
             "t2_article_show": "JPCP507-640",
             "t2_name": "FOCUS 14- CT4Z16003A (ФРОНТОВОЕ СТЕКЛО)"
@@ -254,6 +255,44 @@
 }
 
 ```
+
+### Получение всех статусов товаров
+
+Метод Get, который позволяет получить все статусы товара
+
+### URL http://127.0.0.1:8000/api/get-all-item-statuses/
+
+### Пример ответа
+```json
+
+Ответ
+
+{
+    "message": "Данные по статусам",
+    "statuses": [
+        {
+            "id": 1,
+            "name": "Ожидает оплаты",
+            "color": "#E7FF87",
+            "for_created": 1,
+            "order": 6,
+            "count_flag": 1,
+            "issue_flag": 0
+        },
+        {
+            "id": 5,
+            "name": "Выдан",
+            "color": "#FFFFE1",
+            "for_created": 0,
+            "order": 1,
+            "count_flag": 1,
+            "issue_flag": 1
+        }
+    ]
+}
+
+```
+
 
 ## Синхронизация репозитория
 

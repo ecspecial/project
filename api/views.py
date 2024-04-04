@@ -344,8 +344,14 @@ def get_order_details(request):
                 )
 
             # Получение деталей заказа
-            cursor.execute("""SELECT count_need, status, t2_manufacturer, t2_article_show, t2_name
-                              FROM shop_orders_items WHERE order_id = %s""", (order_id,))
+            cursor.execute("""
+                SELECT soi.count_need, soi.status, soi.t2_manufacturer, soi.t2_article_show, soi.t2_name, 
+                       sors.name AS name_status
+                FROM shop_orders_items soi
+                LEFT JOIN shop_orders_items_statuses_ref sors ON soi.status = sors.id
+                WHERE soi.order_id = %s
+            """, (order_id,))
+
             order_items = cursor.fetchall()
             if not order_items:
                 return JsonResponse(
@@ -353,6 +359,26 @@ def get_order_details(request):
                     safe=False,
                     json_dumps_params={'ensure_ascii': True},
                     status=404)
+            # Формируем результат для ответа, добавляя имя статуса
+            order_details = []
+            for item in order_items:
+                order_detail = {
+                    'count_need': item['count_need'],
+                    'status': item['status'],
+                    'name_status': item['name_status'],
+                    't2_manufacturer': item['t2_manufacturer'],
+                    't2_article_show': item['t2_article_show'],
+                    't2_name': item['t2_name']
+                }
+                order_details.append(order_detail)
+
+        return JsonResponse(
+            {'message': 'Данные заказа', 'order_id': order_id, 'order_items': order_details},
+            safe=False,
+            json_dumps_params={'ensure_ascii': True},
+            status=200
+        )
+    
     except pymysql.MySQLError as e:
         # При неудачной обработке отменяем запросы к базе и возвращаем ошибку
         mysql_conn.close()
@@ -361,14 +387,6 @@ def get_order_details(request):
             safe=False,
             json_dumps_params={'ensure_ascii': True},
             status=500
-        )
-    else:
-        mysql_conn.close()
-        return JsonResponse(
-            {'message': 'Данные заказа', 'order_id': order_id, 'order_items': order_items},
-            safe=False,
-            json_dumps_params={'ensure_ascii': True},
-            status=200
         )
     
 @api_view(['POST'])
@@ -516,3 +534,35 @@ def get_user_specific_cards(request):
         json_dumps_params={'ensure_ascii': True},
         status=200
     )
+
+@api_view(['GET'])
+def get_order_item_statuses(request):
+    """
+    Получение всех статусов заказов из таблицы 'shop_orders_items_statuses_ref'.
+
+    Parameters:
+        request (HttpRequest): Запрос от клиента.
+
+    Returns:
+        JsonResponse: JSON-ответ с данными о статусах и статусом HTTP.
+    """
+    if request.method == 'GET':
+        try:
+            connection = get_mysql_connection()
+            with connection:
+                with connection.cursor() as cursor:
+                    cursor.execute("SELECT * FROM shop_orders_items_statuses_ref")
+                    statuses = cursor.fetchall()
+            return JsonResponse(
+                {'message': 'Данные по статусам', 'statuses': statuses},
+                safe=False,
+                json_dumps_params={'ensure_ascii': True},
+                status=200
+            )
+        except Exception as e:
+            return JsonResponse(
+                {'error': f'Произошла ошибка при получении статусов заказов: {str(e)}'},
+                safe=False,
+                json_dumps_params={'ensure_ascii': True},
+                status=500
+            )
